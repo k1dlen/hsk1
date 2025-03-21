@@ -4,6 +4,8 @@ import Card from "@/app/Components/Card";
 import CategoryCard from "@/app/Components/CategoryCard";
 import Header from "@/app/Components/Header";
 import Footer from "@/app/Components/Footer";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function WordsPage() {
   const [words, setWords] = useState([]);
@@ -52,6 +54,18 @@ export default function WordsPage() {
       });
 
       if (response.ok) {
+
+        toast.info("🥇 Вы молодец, продолжайте в том же духе!!", {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: false,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "light",
+        });
+
         setWords((prev) =>
           prev.map((word) =>
             word.id === wordId ? { ...word, is_learned: true } : word
@@ -119,6 +133,8 @@ export default function WordsPage() {
         )}
       </div>
       <Footer />
+
+      <ToastContainer />
     </>
   );
 }
