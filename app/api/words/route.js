@@ -5,6 +5,7 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
+    const type = searchParams.get("type");
 
     if (!userId) {
       return NextResponse.json(
@@ -14,14 +15,19 @@ export async function GET(req) {
     }
 
     const query = `
-      SELECT w.*, 
-             CASE WHEN ulw.word_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_learned
+      SELECT 
+        w.*, 
+        CASE WHEN ulw.word_id IS NOT NULL THEN TRUE ELSE FALSE END AS is_learned
       FROM words w
       LEFT JOIN user_learned_words ulw 
-      ON w.id = ulw.word_id AND ulw.user_id = ?
+        ON w.id = ulw.word_id AND ulw.user_id = ?
+      ${type ? "WHERE w.type = ?" : ""}
     `;
 
-    const [rows] = await db.query(query, [userId]);
+    const params = [userId];
+    if (type) params.push(type);
+
+    const [rows] = await db.query(query, params);
 
     return NextResponse.json(rows);
   } catch (error) {

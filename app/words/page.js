@@ -1,47 +1,49 @@
 "use client";
 import { useState, useEffect } from "react";
 import Card from "@/app/Components/Card";
+import CategoryCard from "@/app/Components/CategoryCard";
 import Header from "@/app/Components/Header";
 import Footer from "@/app/Components/Footer";
 
 export default function WordsPage() {
   const [words, setWords] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedType, setSelectedType] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedUserData = localStorage.getItem("user");      
-
-      const user = JSON.parse(storedUserData);
-        console.log(user);
-        
-      if (user && user.id) {
-        setUserId(user.id);
-      } else {
-        console.log("User ID не найден в localStorage");
-      }
+      const user = JSON.parse(localStorage.getItem("user"));
+      user?.id && setUserId(user.id);
     }
   }, []);
 
   useEffect(() => {
-    const fetchWords = async () => {
-      if (!userId) {
-        return;
-      }
+    const fetchData = async () => {
       try {
-        const response = await fetch(`/api/words?userId=${userId}`);
-        const data = await response.json();
-        console.log(data);
-        
-        setWords(data);
+        setIsLoading(true);
+
+        if (selectedType) {
+          const response = await fetch(
+            `/api/words?userId=${userId}&type=${selectedType}`
+          );
+          const data = await response.json();
+          setWords(data);
+        } else {
+          const response = await fetch(`/api/words/types?userId=${userId}`);
+          const data = await response.json();
+          setCategories(data);
+        }
       } catch (error) {
-        console.error("Ошибка при загрузке карточек:", error);
+        console.error("Ошибка загрузки:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchWords();
-  }, [userId]);
-
+    userId && fetchData();
+  }, [userId, selectedType]);
 
   const markAsLearned = async (wordId) => {
     try {
@@ -50,39 +52,71 @@ export default function WordsPage() {
       });
 
       if (response.ok) {
-        setWords((prevWords) =>
-          prevWords.map((word) =>
+        setWords((prev) =>
+          prev.map((word) =>
             word.id === wordId ? { ...word, is_learned: true } : word
           )
         );
-      } else {
-        console.error("Ошибка при отметке карточки как изученной.");
+        setCategories((prev) =>
+          prev.map((cat) =>
+            cat.type === selectedType
+              ? { ...cat, learned: cat.learned + 1 }
+              : cat
+          )
+        );
       }
     } catch (error) {
-      console.error("Ошибка при изменении статуса карточки:", error);
+      console.error("Ошибка при обновлении:", error);
     }
   };
 
   return (
     <>
       <Header />
-      <div className="container words-page">
-        <h1 className="title mt-2">Карточки для изучения</h1>
-        <div className="cards-container">
-          {words.map((word) => (
-            <Card
-              key={word.id}
-              wordId={word.id}
-              chinese={word.chinese}
-              pinyin={word.pinyin}
-              translation={word.translation}
-              type={word.type}
-              isLearned={word.is_learned || false}
-              userId={userId}
-              onMarkAsLearned={markAsLearned}
-            />
-          ))}
-        </div>
+      <div className="container mx-auto px-4 min-h-screen">
+        <h1 className="text-3xl font-bold mt-8 mb-6 text-center">
+          {selectedType || "Все категории"}
+        </h1>
+
+        {selectedType && (
+          <button
+            onClick={() => setSelectedType(null)}
+            className="mb-6 text-blue-600 hover:text-blue-800 flex items-center"
+          >
+            <span className="mr-2">←</span>
+            Вернуться к категориям
+          </button>
+        )}
+
+        {isLoading ? (
+          <div className="text-center py-12">Загрузка...</div>
+        ) : selectedType ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-4">
+            {words.map((word) => (
+              <Card
+                key={word.id}
+                wordId={word.id}
+                chinese={word.chinese}
+                pinyin={word.pinyin}
+                translation={word.translation}
+                type={word.type}
+                isLearned={word.is_learned || false}
+                userId={userId}
+                onMarkAsLearned={markAsLearned}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {categories.map((category) => (
+              <CategoryCard
+                key={category.type}
+                {...category}
+                onClick={() => setSelectedType(category.type)}
+              />
+            ))}
+          </div>
+        )}
       </div>
       <Footer />
     </>
